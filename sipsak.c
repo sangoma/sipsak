@@ -308,6 +308,7 @@ int main(int argc, char *argv[])
 		{"transport", 1, 0, 'E'},
 		{"headers", 1, 0, 'j'},
 		{"authhash", 1, 0, 'J'},
+		{"retrans-limit", 1, 0, 'k'},
 		{"syslog", 1, 0, 'K'},
 		{"src-addr", 1, 0, 'X'},
 #ifdef WITH_TLS_TRANSP
@@ -322,7 +323,7 @@ int main(int argc, char *argv[])
 	file_b=uri_b=trace=lport=usrloc=flood=verbose=randtrash=trashchar = 0;
 	warning_ext=rand_rem=nonce_count=replace_b=invite=message=sysl = 0;
 	sleep_ms=empty_contact=nagios_warn=timing=outbound_proxy=symmetric = 0;
-	namebeg=nameend=maxforw= -1;
+	namebeg=nameend=maxforw=retrans_limit= -1;
 #ifdef OLDSTYLE_FQDN
 	numeric = 0;
 #else
@@ -362,9 +363,9 @@ int main(int argc, char *argv[])
 
 	/* lots of command line switches to handle*/
 #ifdef HAVE_GETOPT_LONG
-	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:X:z:Z:", l_opts, &option_index)) != EOF){
+	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:k:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:X:z:Z:", l_opts, &option_index)) != EOF){
 #else
-	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:X:z:Z:")) != EOF){
+	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:k:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:X:z:Z:")) != EOF){
 #endif
 		switch(c){
 #ifdef HAVE_GETOPT_LONG
@@ -586,6 +587,9 @@ int main(int argc, char *argv[])
 #ifdef HAVE_SYSLOG_H
 				openlog(PACKAGE_NAME, LOG_CONS|LOG_NOWAIT|LOG_PID, LOG_USER);
 #endif
+				break;
+			case 'k':
+				retrans_limit=str_to_int(0, optarg);
 				break;
 			case 'l':
 				lport=str_to_int(0, optarg);
