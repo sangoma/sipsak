@@ -564,8 +564,16 @@ void create_sockets(struct sipsak_con_data *cd) {
 
 	memset(&(cd->adr), 0, sizeof(struct sockaddr_in));
 	cd->adr.sin_family = AF_INET;
-	cd->adr.sin_addr.s_addr = htonl( INADDR_ANY);
+	cd->adr.sin_addr.s_addr = htonl(INADDR_ANY);
 	cd->adr.sin_port = htons((short)lport);
+	if (srcaddr) {
+		if (!inet_aton(srcaddr, &cd->adr.sin_addr)) {
+			fprintf(stderr, "Invalid srcaddr=%s, defaulting to INADDR_ANY\n", srcaddr);
+			cd->adr.sin_addr.s_addr = htonl(INADDR_ANY);
+		} else {
+			printf("\nUsing srcaddr=%s\n", srcaddr);
+		}
+	}
 
 	if (transport == SIP_UDP_TRANSPORT) {
 		/* create the un-connected socket */

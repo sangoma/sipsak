@@ -242,6 +242,7 @@ void print_help() {
 		"  -j STRING         adds additional headers to the request\n"
 		"  -J STRING         ha1 hash for authentication instead of password\n"
 		"  -K NUMBER         log exit message to syslog with given log level\n"
+		"  -X STRING         the source address for traffic\n"
 		, DEFAULT_TIMEOUT
 		);
 		exit_code(0, __PRETTY_FUNCTION__, NULL);
@@ -308,6 +309,7 @@ int main(int argc, char *argv[])
 		{"headers", 1, 0, 'j'},
 		{"authhash", 1, 0, 'J'},
 		{"syslog", 1, 0, 'K'},
+		{"src-addr", 1, 0, 'X'},
 #ifdef WITH_TLS_TRANSP
 		{"tls-ca-cert", 1, 0, 0},
 		{"tls-client-cert", 1, 0, 0},
@@ -328,7 +330,7 @@ int main(int argc, char *argv[])
 #endif
 	via_ins=redirects=fix_crlf=processes = 1;
 	username=password=replace_str=hostname=contact_uri=mes_body = NULL;
-	con_dis=auth_username=from_uri=headers=authhash = NULL;
+	con_dis=auth_username=from_uri=headers=authhash=srcaddr = NULL;
 	scheme = user = host = backup = req = rep = rec = NULL;
 	re = NULL;
 	address= 0;
@@ -360,9 +362,9 @@ int main(int argc, char *argv[])
 
 	/* lots of command line switches to handle*/
 #ifdef HAVE_GETOPT_LONG
-	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:Z:", l_opts, &option_index)) != EOF){
+	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:X:z:Z:", l_opts, &option_index)) != EOF){
 #else
-	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:Z:")) != EOF){
+	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:X:z:Z:")) != EOF){
 #endif
 		switch(c){
 #ifdef HAVE_GETOPT_LONG
@@ -821,6 +823,9 @@ int main(int argc, char *argv[])
 				break;
 			case 'x':
 				expires_t=str_to_int(0, optarg);
+				break;
+			case 'X':
+				srcaddr=optarg;
 				break;
 			case 'z':
 				rand_rem=str_to_int(0, optarg);
