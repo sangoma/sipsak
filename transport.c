@@ -852,7 +852,7 @@ int check_for_message(char *recv, int size, struct sipsak_con_data *cd,
 		if (retrans_limit >= 0 && retrans_limit <= count->retrans_s_c) {
 			if (verbose>0)
 				printf("*** giving up, no final response after %.3f ms\n", senddiff);
-			exit_code(3);
+			exit_code(3, __PRETTY_FUNCTION__, "timeout (no final response)");
 		}
 		if (senddiff > (float)timer_final) {
 			if (timing == 0) {

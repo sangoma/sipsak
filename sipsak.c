@@ -716,27 +716,32 @@ int main(int argc, char *argv[])
 				if (port && !rport) {
 					rport = port;
 				}
-				if (is_ip(domainname) && !address) {
-					address = getaddress(domainname);
-					if (transport == 0)
-						transport = SIP_UDP_TRANSPORT;
-				}
-				else {
-					if (!rport && !address) {
-						address = getsrvadr(domainname, &rport, &tsp);
-						if (tsp != 0 && transport == 0)
-							transport = tsp;
-					}
-					if (!address) {
+
+				if (!outbound_proxy) {
+					/* Only try to resolve the domain in the SIP URI if there is no outbound proxy */
+					if (is_ip(domainname) && !address) {
 						address = getaddress(domainname);
-						if (address && verbose > 1)
-							printf("using A record: %s\n", domainname);
+						if (transport == 0)
+							transport = SIP_UDP_TRANSPORT;
 					}
-					if (!address){
-						fprintf(stderr, "error:unable to determine the IP address for: %s\n", domainname);
-						exit_code(2, __PRETTY_FUNCTION__, "failed to resolve host from target URI");
+					else {
+						if (!rport && !address) {
+							address = getsrvadr(domainname, &rport, &tsp);
+							if (tsp != 0 && transport == 0)
+								transport = tsp;
+						}
+						if (!address) {
+							address = getaddress(domainname);
+							if (transport == 0)
+								transport = SIP_UDP_TRANSPORT;
+						}
+						if (!address){
+							fprintf(stderr, "error:unable to determine the IP address for: %s\n", domainname);
+							exit_code(2, __PRETTY_FUNCTION__, "failed to resolve host from target URI");
+						}
 					}
 				}
+
 				if (port != 0) {
 					backup = str_alloc(strlen(domainname)+1+6);
 					snprintf(backup, strlen(domainname)+6, "%s:%i", domainname, port);
