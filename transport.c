@@ -102,6 +102,7 @@
 # endif
 #endif /* WITH_TLS_TRANSP */
 
+#include <string.h>
 #include "exit_code.h"
 #include "helper.h"
 #include "header_f.h"
@@ -558,6 +559,16 @@ void tls_dump_cert_info(char* s, X509* cert) {
 #  endif /* USE_OPENSSL */
 # endif /* USE_GNUTLS */
 #endif /* WITH_TLS_TRANSP */
+
+/* return pointer to the beginning of the message body */
+static inline char* get_body(char *mes) {
+	char *cr;
+
+	if ((cr = strstr(mes, "\r\n\r\n")) != NULL) {
+		cr+=4;
+	}
+	return cr;
+}
 
 void create_sockets(struct sipsak_con_data *cd) {
 	socklen_t slen;

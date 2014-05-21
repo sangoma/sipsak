@@ -61,5 +61,4 @@ void new_transaction(char *message, char *reply);
 
 void print_message_line(char *message);
 
-inline char* get_body(char *mes);
 #endif
