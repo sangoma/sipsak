@@ -334,7 +334,6 @@ int main(int argc, char *argv[])
 	con_dis=auth_username=from_uri=headers=authhash=srcaddr = NULL;
 	scheme = user = host = backup = req = rep = rec = NULL;
 	re = NULL;
-	address= 0;
 	transport=tsp = 0;
 	rport = port = 0;
 	expires_t = USRLOC_EXP_DEF;
@@ -628,31 +627,7 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "error: missing in host in outbound proxy\n");
 					exit_code(2, __PRETTY_FUNCTION__, "missing host in outbound proxy");
 				}
-				if (is_ip(host)) {
-					address = getaddress(host);
-					if (transport == 0)
-						transport = SIP_UDP_TRANSPORT;
-				}
-				else {
-					if (!port) {
-						address = getsrvadr(host, &rport, &tsp);
-						if (tsp != 0)
-							transport = tsp;
-					}
-					if (!address) {
-						address = getaddress(host);
-						if (address && verbose > 1)
-							printf("using A record: %s\n", host);
-					}
-					if (!address){
-						fprintf(stderr, "error:unable to determine the outbound proxy "
-							"address\n");
-						exit_code(2, __PRETTY_FUNCTION__, "failed to resolve the outbound proxy");
-					}
-				}
-				if (port && !rport) {
-					rport = port;
-				}
+				proxyname = host;
 				outbound_proxy=1;
 #ifdef DEBUG
 				printf("address: %lu, rport: %i\n", address, rport);
@@ -715,31 +690,6 @@ int main(int argc, char *argv[])
 				}
 				if (port && !rport) {
 					rport = port;
-				}
-
-				if (!outbound_proxy) {
-					/* Only try to resolve the domain in the SIP URI if there is no outbound proxy */
-					if (is_ip(domainname) && !address) {
-						address = getaddress(domainname);
-						if (transport == 0)
-							transport = SIP_UDP_TRANSPORT;
-					}
-					else {
-						if (!rport && !address) {
-							address = getsrvadr(domainname, &rport, &tsp);
-							if (tsp != 0 && transport == 0)
-								transport = tsp;
-						}
-						if (!address) {
-							address = getaddress(domainname);
-							if (transport == 0)
-								transport = SIP_UDP_TRANSPORT;
-						}
-						if (!address){
-							fprintf(stderr, "error:unable to determine the IP address for: %s\n", domainname);
-							exit_code(2, __PRETTY_FUNCTION__, "failed to resolve host from target URI");
-						}
-					}
 				}
 
 				if (port != 0) {
@@ -870,6 +820,21 @@ int main(int argc, char *argv[])
 
 	timer_t2 = timer_t2 * timer_t1;
 	timer_final = timer_final * timer_t1;
+	char *target = outbound_proxy ? proxyname : domainname;
+
+	if (is_ip(target) || rport) {
+		getaddress(target, rport, transport, &address);
+	} else {
+		if (getsrvadr(host, &address) < 0) {
+			if (outbound_proxy) {
+				exit_code(2, __PRETTY_FUNCTION__, "failed to determine the outbound proxy address");
+			} else {
+				exit_code(2, __PRETTY_FUNCTION__, "failed to determine the IP address");
+			}
+		}
+		if (verbose > 1)
+			printf("using A record: %s\n", host);
+	}
 
 	/* replace LF with CRLF if we read from a file */
 	if ((file_b) && (fix_crlf)) {

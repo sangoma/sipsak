@@ -70,6 +70,7 @@
 #ifdef HAVE_STRING_H
 # include <string.h>
 #endif
+#include <netdb.h>
 
 #ifdef HAVE_GNUTLS
 # define HAVE_EXTERNAL_MD5
@@ -320,7 +321,7 @@ SSL* ssl;
 #endif
 
 /* lots of global variables. ugly but makes life easier. */
-unsigned long address;
+struct addrinfo address;
 unsigned int nonce_count, transport;
 int sleep_ms, processes, cseq_counter;
 int verbose, nameend, namebeg, expires_t, flood, warning_ext, invite, message;
@@ -328,7 +329,7 @@ int maxforw, lport, rport, randtrash, trashchar, numeric, symmetric;
 int file_b, uri_b, trace, via_ins, usrloc, redirects, rand_rem, replace_b;
 int empty_contact, nagios_warn, fix_crlf, timing, outbound_proxy, retrans_limit;
 int timer_t1, timer_t2, timer_final, sysl;
-char *username, *domainname, *password, *replace_str, *hostname, *contact_uri;
+char *username, *proxyname, *domainname, *password, *replace_str, *hostname, *contact_uri;
 char *mes_body, *con_dis, *auth_username, *from_uri, *headers, *authhash, *srcaddr;
 char fqdn[FQDN_SIZE];
 char target_dot[INET_ADDRSTRLEN], source_dot[INET_ADDRSTRLEN];

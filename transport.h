@@ -88,5 +88,5 @@ int recv_message(char *buf, int size, int inv_trans,
 			struct sipsak_counter *count, struct sipsak_con_data *cd,
 			struct sipsak_regexp *reg);
 
-int set_target(struct sockaddr_in *adr, unsigned long target, int port, int socket, int connected);
+int set_target(struct addrinfo *res, int socket, int connected);
 #endif

@@ -38,10 +38,11 @@
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
+#include <netdb.h>
 
 #include "shoot.h"
 
-#include "request.h"   
+#include "request.h"
 #include "auth.h"
 #include "header_f.h"
 #include "helper.h"
@@ -67,7 +68,7 @@ struct sipsak_con_data cdata;
 struct sipsak_counter counters;
 struct sipsak_delay delays;
 
-/* if a reply was received successfuly, return success, unless 
+/* if a reply was received successfuly, return success, unless
  * reply matching is enabled and no match occured
  */
 
@@ -95,7 +96,7 @@ static inline void create_usern(char *target, char *username, int number)
 }
 
 /* tries to take care of a redirection */
-void handle_3xx(struct sockaddr_in *tadr)
+void handle_3xx(void)
 {
 	char *uscheme, *uuser, *uhost, *contact;
 
@@ -108,7 +109,7 @@ void handle_3xx(struct sockaddr_in *tadr)
 	else
 		printf("\n");
 	/* we'll try to handle 301 and 302 here, other 3xx are to complex */
-	regcomp(&(regexps.redexp), "^SIP/[0-9]\\.[0-9] 30[125] ", 
+	regcomp(&(regexps.redexp), "^SIP/[0-9]\\.[0-9] 30[125] ",
 			REG_EXTENDED|REG_NOSUB|REG_ICASE);
 	if (regexec(&(regexps.redexp), rec, 0, 0, 0) == REG_NOERROR) {
 		/* try to find the contact in the redirect */
@@ -123,24 +124,20 @@ void handle_3xx(struct sockaddr_in *tadr)
 		new_transaction(req, rep);
 		/* extract the needed information*/
 		rport = 0;
-		address = 0;
+		memset(&address, 0, sizeof(struct addrinfo));
 		parse_uri(contact, &uscheme, &uuser, &uhost, &rport);
-		if (!rport)
-			address = getsrvadr(uhost, &rport, &transport);
-		if (!address)
-			address = getaddress(uhost);
-		if (!address){
-			fprintf(stderr, "error: cannot determine host "
-					"address from Contact of redirect:"
-					"\n%s\n", rec);
-			exit_code(2, __PRETTY_FUNCTION__, "missing host in Contact header");
-		}
-		if (!rport) {
-			rport = 5060;
+
+		if (!rport && getaddress(uhost, rport, transport, &address) < 0) {
+			if (getsrvadr(uhost, &address) < 0) {
+				fprintf(stderr, "error: cannot determine host "
+						"address from Contact of redirect:"
+						"\n%s\n", rec);
+				exit_code(2, __PRETTY_FUNCTION__, "missing host in Contact header");
+			}
 		}
 		free(contact);
 		if (!outbound_proxy)
-			cdata.connected = set_target(tadr, address, rport, cdata.csock, cdata.connected);
+			cdata.connected = set_target(&address, cdata.csock, cdata.connected);
 	}
 	else {
 		fprintf(stderr, "error: cannot handle this redirect:"
@@ -218,7 +215,7 @@ void trace_reply()
 /* takes care of replies in the default mode */
 void handle_default()
 {
-	/* in the normal send and reply case anything other 
+	/* in the normal send and reply case anything other
 	   then 1xx will be treated as final response*/
 	if (regexec(&(regexps.proexp), rec, 0, 0, 0) == REG_NOERROR) {
 		if (verbose > 1) {
@@ -313,7 +310,7 @@ void handle_randtrash()
 	}
 	else {
 		fprintf(stderr, "warning: did not received 4xx\n");
-		if (verbose > 1) 
+		if (verbose > 1)
 			printf("sended:\n%s\nreceived:\n%s\n", req, rec);
 	}
 	if (cseq_counter == nameend) {
@@ -355,7 +352,7 @@ void handle_usrloc()
 	else {
 		switch (usrlocstep) {
 			case REG_REP:
-				/* we have sent a register and look 
+				/* we have sent a register and look
 				   at the response now */
 				if (regexec(&(regexps.okexp), rec, 0, 0, 0) == REG_NOERROR) {
 					if (verbose > 1) {
@@ -387,13 +384,13 @@ void handle_usrloc()
 										" ms\n", delays.big_delay);
 						}
 						if (counters.retrans_r_c>0 && verbose>0) {
-							printf("%i retransmission(s) received from server.\n", 
+							printf("%i retransmission(s) received from server.\n",
 										counters.retrans_r_c);
 						}
 						if (counters.retrans_s_c>0 && verbose>0) {
 							printf("%i time(s) the timeout of "
 										"%i ms exceeded and request was"
-										" retransmitted.\n", 
+										" retransmitted.\n",
 										counters.retrans_s_c, delays.retryAfter);
 							if (counters.retrans_s_c > nagios_warn) {
 								log_message(req);
@@ -406,7 +403,7 @@ void handle_usrloc()
 						}
 						on_success(rec);
 					} /* namebeg == nameend */
-					/* lets see if we deceid to remove a 
+					/* lets see if we deceid to remove a
 					   binding (case 6)*/
 					if ( ((float)rand()/RAND_MAX)*100 > rand_rem) {
 						namebeg++;
@@ -528,13 +525,13 @@ void handle_usrloc()
 										" ms\n", delays.big_delay);
 						}
 						if (counters.retrans_r_c>0) {
-							printf("%i retransmission(s) received from server.\n", 
+							printf("%i retransmission(s) received from server.\n",
 										counters.retrans_r_c);
 						}
 						if (counters.retrans_s_c>0) {
 							printf("%i time(s) the timeout of "
 										"%i ms exceeded and request was"
-										" retransmitted.\n", 
+										" retransmitted.\n",
 										counters.retrans_s_c, delays.retryAfter);
 							if (counters.retrans_s_c > nagios_warn) {
 								log_message(req);
@@ -544,7 +541,7 @@ void handle_usrloc()
 						on_success(rec);
 					} /* namebeg == nameend */
 					if (usrloc == 1) {
-						/* lets see if we deceid to remove a 
+						/* lets see if we deceid to remove a
 						   binding (case 6)*/
 						if (((float)rand()/RAND_MAX) * 100 > rand_rem) {
 							namebeg++;
@@ -581,7 +578,7 @@ void handle_usrloc()
 				}
 				break;
 			case MES_RECV:
-				/* we sent the message and look if its 
+				/* we sent the message and look if its
 				   forwarded to us */
 				sprintf(ruri, "%s sip:%s", MES_STR, usern);
 				if (!STRNCASECMP(rec, ruri, strlen(ruri))) {
@@ -641,13 +638,13 @@ void handle_usrloc()
 						}
 						if (counters.retrans_r_c>0) {
 							printf("%i retransmission(s) "
-										"received from server.\n", 
+										"received from server.\n",
 											counters.retrans_r_c);
 						}
 						if (counters.retrans_s_c>0) {
 							printf("%i time(s) the timeout of "
 										"%i ms exceeded and request was"
-										" retransmitted.\n", 
+										" retransmitted.\n",
 										counters.retrans_s_c, delays.retryAfter);
 							if (counters.retrans_s_c > nagios_warn) {
 								log_message(req);
@@ -657,7 +654,7 @@ void handle_usrloc()
 						on_success(rec);
 					} /* namebeg == nameend */
 					if (usrloc == 1) {
-						/* lets see if we deceid to remove a 
+						/* lets see if we deceid to remove a
 						   binding (case 6)*/
 						if (((float)rand()/RAND_MAX) * 100 > rand_rem) {
 							namebeg++;
@@ -733,7 +730,7 @@ void handle_usrloc()
 					fprintf(stderr, "received:\n%s\nerror: did not "
 								"received the expected 200 on the "
 								"remove bindings request for %s%i (see"
-								" above). aborting\n", rec, username, 
+								" above). aborting\n", rec, username,
 								namebeg);
 					log_message(req);
 					exit_code(1, __PRETTY_FUNCTION__, "received non-2xx reply for de-register request");
@@ -870,20 +867,20 @@ void shoot(char *buf, int buff_size)
 		replace_strings(req, replace_str);
 
 	/* set all regular expression to simplfy the result code indetification */
-	regcomp(&(regexps.replyexp), "^SIP/[0-9]\\.[0-9] [1-6][0-9][0-9]", 
-		REG_EXTENDED|REG_NOSUB|REG_ICASE); 
-	regcomp(&(regexps.proexp), "^SIP/[0-9]\\.[0-9] 1[0-9][0-9] ", 
-		REG_EXTENDED|REG_NOSUB|REG_ICASE); 
-	regcomp(&(regexps.okexp), "^SIP/[0-9]\\.[0-9] 2[0-9][0-9] ", 
-		REG_EXTENDED|REG_NOSUB|REG_ICASE); 
-	regcomp(&(regexps.redexp), "^SIP/[0-9]\\.[0-9] 3[0-9][0-9] ", 
+	regcomp(&(regexps.replyexp), "^SIP/[0-9]\\.[0-9] [1-6][0-9][0-9]",
 		REG_EXTENDED|REG_NOSUB|REG_ICASE);
-	regcomp(&(regexps.authexp), "^SIP/[0-9]\\.[0-9] 40[17] ", 
+	regcomp(&(regexps.proexp), "^SIP/[0-9]\\.[0-9] 1[0-9][0-9] ",
 		REG_EXTENDED|REG_NOSUB|REG_ICASE);
-	regcomp(&(regexps.errexp), "^SIP/[0-9]\\.[0-9] 4[0-9][0-9] ", 
-		REG_EXTENDED|REG_NOSUB|REG_ICASE); 
-	regcomp(&(regexps.tmhexp), "^SIP/[0-9]\\.[0-9] 483 ", 
-		REG_EXTENDED|REG_NOSUB|REG_ICASE); 
+	regcomp(&(regexps.okexp), "^SIP/[0-9]\\.[0-9] 2[0-9][0-9] ",
+		REG_EXTENDED|REG_NOSUB|REG_ICASE);
+	regcomp(&(regexps.redexp), "^SIP/[0-9]\\.[0-9] 3[0-9][0-9] ",
+		REG_EXTENDED|REG_NOSUB|REG_ICASE);
+	regcomp(&(regexps.authexp), "^SIP/[0-9]\\.[0-9] 40[17] ",
+		REG_EXTENDED|REG_NOSUB|REG_ICASE);
+	regcomp(&(regexps.errexp), "^SIP/[0-9]\\.[0-9] 4[0-9][0-9] ",
+		REG_EXTENDED|REG_NOSUB|REG_ICASE);
+	regcomp(&(regexps.tmhexp), "^SIP/[0-9]\\.[0-9] 483 ",
+		REG_EXTENDED|REG_NOSUB|REG_ICASE);
 
 	if (username) {
 		if (nameend > 0) {
@@ -963,7 +960,7 @@ void shoot(char *buf, int buff_size)
 			set_maxforw(req, maxforw);
 	}
 
-	cdata.connected = set_target(&(cdata.adr), address, rport, cdata.csock, cdata.connected);
+	cdata.connected = set_target(&address, cdata.csock, cdata.connected);
 
 	/* here we go until someone decides to exit */
 	while(1) {
@@ -991,9 +988,9 @@ void shoot(char *buf, int buff_size)
 					swap_ptr(&rep, &req);
 				}
 				/* send ACK for non-provisional reply on INVITE */
-				if ((STRNCASECMP(req, "INVITE", 6)==0) && 
-						(regexec(&(regexps.replyexp), rec, 0, 0, 0) == REG_NOERROR) && 
-						(regexec(&(regexps.proexp), rec, 0, 0, 0) == REG_NOMATCH)) { 
+				if ((STRNCASECMP(req, "INVITE", 6)==0) &&
+						(regexec(&(regexps.replyexp), rec, 0, 0, 0) == REG_NOERROR) &&
+						(regexec(&(regexps.proexp), rec, 0, 0, 0) == REG_NOMATCH)) {
 					build_ack(req, rec, rep, &regexps);
 					cdata.dontsend = 0;
 					inv_trans = 0;
@@ -1042,7 +1039,7 @@ void shoot(char *buf, int buff_size)
 				} /* if auth...*/
 				/* lets see if received a redirect */
 				if (redirects == 1 && regexec(&(regexps.redexp), rec, 0, 0, 0) == REG_NOERROR) {
-					handle_3xx(&(cdata.adr));
+					handle_3xx();
 				} /* if redircts... */
 				else if (trace == 1) {
 					trace_reply();

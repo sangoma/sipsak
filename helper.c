@@ -63,6 +63,8 @@
  char *ca_tmpname;
  ares_channel channel;
 
+#define INT_DIGITS10 ((CHAR_BIT * sizeof(int) - 1) / 3 + 2)
+
 #endif // HAVE_CARES_H
 
 #include "helper.h"
@@ -94,7 +96,7 @@ int is_ip(char *str) {
 		return 0;
 }
 
-/* take either a dot.decimal string of ip address or a 
+/* take either a dot.decimal string of ip address or a
 domain name and returns a NETWORK ordered long int containing
 the address. i chose to internally represent the address as long for speedier
 comparisions.
@@ -107,37 +109,54 @@ contact: farhan@hotfoon.com
   a badly behaving dns system remains inside (you send to 0.0.0.0)
 */
 
-unsigned long getaddress(char *host) {
-	struct hostent* pent;
-	long l, *lp;
+int getaddress(char *host, int rport, int transport, struct addrinfo *ret) {
+	struct addrinfo *result;
+	struct addrinfo *res;
+	int error;
 
-	if (strlen(host) == 0) {
-		return 0;
+	struct addrinfo hints = {
+		.ai_family = AF_UNSPEC,
+		.ai_socktype = transport == SIP_TCP_TRANSPORT ? SOCK_STREAM : SOCK_DGRAM
+	};
+
+	if (rport) {
+		char strport[INT_DIGITS10];
+		snprintf(strport, INT_DIGITS10, "%i", rport);
+		error = getaddrinfo(host, strport, &hints, &result);
+	} else {
+		error = getaddrinfo(host, "sip", &hints, &result);
 	}
-	if (is_ip(host)) {
-		return inet_addr(host);
+
+	/* resolve the domain name into a list of addresses */
+	if (error != 0) {
+		if (error == EAI_SYSTEM) {
+			perror("getaddrinfo");
+		} else {
+			fprintf(stderr, "error in getaddrinfo for %s: %s\n", host, gai_strerror(error));
+		}
+		return -1;
 	}
 
-	/* try the system's own resolution mechanism for dns lookup:
-	 required only for domain names.
-	 inspite of what the rfc2543 :D Using SRV DNS Records recommends,
-	 we are leaving it to the operating system to do the name caching.
+	/* loop over all returned results and do inverse lookup */
+	for (res = result; res != NULL; res = res->ai_next) {
+		char hostname[NI_MAXHOST];
 
-	 this is an important implementational issue especially in the light
-	 dynamic dns servers like dynip.com or dyndns.com where a dial
-	 ip address is dynamically assigned a sub domain like farhan.dynip.com
+		error = getnameinfo(res->ai_addr, res->ai_addrlen, hostname, NI_MAXHOST, NULL, 0, 0);
+		if (error != 0) {
+			fprintf(stderr, "error in getnameinfo: %s\n", gai_strerror(error));
+			continue;
+		} if (*hostname != '\0') {
+			memset(ret, 0, sizeof(struct addrinfo));
+			memcpy(ret, res, sizeof(struct addrinfo));
 
-	 although expensive, this is a must to allow OS to take
-	 the decision to expire the DNS records as it deems fit.
-	*/
-	pent = gethostbyname(host);
-	if (!pent) {
-		printf("'%s' is unresolveable\n", host);
-		exit_code(2, __PRETTY_FUNCTION__, "hostname is not resolveable");
+			ret->ai_addr = malloc(res->ai_addrlen);
+			memcpy(ret->ai_addr, res->ai_addr, res->ai_addrlen);
+			break;
+		}
 	}
-	lp = (long *) (pent->h_addr);
-	l = *lp;
-	return l;
+
+	freeaddrinfo(result);
+	return 0;
 }
 
 #ifdef HAVE_CARES_H
@@ -173,7 +192,9 @@ static const unsigned char *parse_rr(const unsigned char *aptr, const unsigned c
 		free(name);
 		return NULL;
 	}
-	if (type != CARES_TYPE_SRV && type != CARES_TYPE_A && type != CARES_TYPE_CNAME) {
+	if ((ca_tmpname == NULL && type != CARES_TYPE_SRV) ||
+		(ca_tmpname != NULL &&
+		 	(type != CARES_TYPE_A && type != CARES_TYPE_CNAME))) {
 		printf("error: unsupported DNS response type (%i)\n", type);
 		free(name);
 		return NULL;
@@ -303,14 +324,14 @@ static void cares_callback(void *arg, int status, int timeouts, unsigned char *a
 	}
 }
 
-inline unsigned long srv_ares(char *host, int *port, char *srv) {
+static int srv_ares(char *host, char *srv, int proto, struct addrinfo *res) {
 	int nfds, count, srvh_len;
 	char *srvh;
 	fd_set read_fds, write_fds;
 	struct timeval *tvp, tv;
+	int ret = -1;
 
 	caport = 0;
-	caadr = 0;
 	ca_tmpname = NULL;
 	dbg("starting ARES query\n");
 
@@ -344,14 +365,13 @@ inline unsigned long srv_ares(char *host, int *port, char *srv) {
 		ares_process(channel, &read_fds, &write_fds);
 	}
 	dbg("ARES answer processed\n");
-	*port = caport;
 	if (caadr == 0 && ca_tmpname != NULL) {
-		caadr = getaddress(ca_tmpname);
+		ret = getaddress(ca_tmpname, caport, proto, res);
 	}
 	if (ca_tmpname != NULL)
 		free(ca_tmpname);
 	free(srvh);
-	return caadr;
+	return ret;
 }
 #endif // HAVE_CARES_H
 
@@ -418,12 +438,13 @@ inline unsigned long srv_ruli(char *host, int *port, char *srv) {
 }
 #endif // HAVE_RULI_H
 
-unsigned long getsrvaddress(char *host, int *port, char *srv) {
+int getsrvaddress(char *host, int *port, char *srv, int proto, struct addrinfo *res) {
 #ifdef HAVE_RULI_H
-	return srv_ruli(host, port, srv);
+	/* return srv_ruli(host, port, srv, res); */
+	return 0;
 #else
 # ifdef HAVE_CARES_H // HAVE_RULI_H
-	return srv_ares(host, port, srv);
+	return srv_ares(host, srv, proto, res);
 # else // HAVE_CARES_H
 	return 0;
 # endif
@@ -434,11 +455,10 @@ unsigned long getsrvaddress(char *host, int *port, char *srv) {
  * address and fills the port and transport if a suitable SRV record
  * exists. Otherwise it returns 0. The function follows 3263: first
  * TLS, then TCP and finally UDP. */
-unsigned long getsrvadr(char *host, int *port, unsigned int *transport) {
-	unsigned long adr = 0;
+int getsrvadr(char *host, struct addrinfo *res) {
+	int ret = -1;
 
-#ifdef HAVE_SRV
-	int srvport = 5060;
+#ifdef HAVE_SVR
 
 #ifdef HAVE_CARES_H
 	int status;
@@ -457,28 +477,21 @@ unsigned long getsrvadr(char *host, int *port, unsigned int *transport) {
 #endif
 
 #ifdef WITH_TLS_TRANSP
-	adr = getsrvaddress(host, &srvport, SRV_SIP_TLS);
-	if (adr != 0) {
-		*transport = SIP_TLS_TRANSPORT;
+	printf("TLS transport not yet supported\n");
+	exit_code(2);
+#endif
+	ret = getsrvaddress(host, service, SRV_SIP_TCP, SIP_TCP_TRANSPORT, res);
+	if (ret >= 0) {
 		if (verbose > 1)
 			printf("using SRV record: %s.%s:%i\n", SRV_SIP_TLS, host, srvport);
 	}
 	else {
-#endif
-		adr = getsrvaddress(host, &srvport, SRV_SIP_TCP);
-		if (adr != 0) {
-			*transport = SIP_TCP_TRANSPORT;
+		ret = getsrvaddress(host, service, SRV_SIP_UDP, SIP_UDP_TRANSPORT, res);
+		if (ret >= 0) {
 			if (verbose > 1)
-				printf("using SRV record: %s.%s:%i\n", SRV_SIP_TCP, host, srvport);
+				printf("using SRV record: %s.%s:%s\n", SRV_SIP_UDP, host, service);
 		}
-		else {
-			adr = getsrvaddress(host, &srvport, SRV_SIP_UDP);
-			if (adr != 0) {
-				*transport = SIP_UDP_TRANSPORT;
-				if (verbose > 1)
-					printf("using SRV record: %s.%s:%i\n", SRV_SIP_UDP, host, srvport);
-			}
-		}
+	}
 #ifdef WITH_TLS_TRANSP
 	}
 #endif
@@ -487,9 +500,9 @@ unsigned long getsrvadr(char *host, int *port, unsigned int *transport) {
 	ares_destroy(channel);
 #endif
 
-	*port = srvport;
 #endif // HAVE_SRV
-	return adr;
+
+	return ret;
 }
 
 /* because the full qualified domain name is needed by many other
@@ -602,7 +615,7 @@ void replace_strings(char *mes, char *strings) {
 
 	pos=atr=val=repl = NULL;
 	dbg("replace_strings entered\nstrings: '%s'\n", strings);
-	if ((isalnum(*strings) != 0) && 
+	if ((isalnum(*strings) != 0) &&
 		(isalnum(*(strings + strlen(strings) - 1)) != 0)) {
 		replace_string(req, "$replace$", replace_str);
 	}
@@ -699,7 +712,7 @@ void trash_random(char *message) {
 		printf("request:\n%s\n", message);
 }
 
-/* this function is taken from traceroute-1.4_p12 
+/* this function is taken from traceroute-1.4_p12
    which is distributed under the GPL and it returns
    the difference between to timeval structs */
 double deltaT(struct timeval *t1p, struct timeval *t2p) {

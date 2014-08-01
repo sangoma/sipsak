@@ -1146,7 +1146,7 @@ int recv_message(char *buf, int size, int inv_trans,
 
 /* clears the given sockaddr, fills it with the given data and if a
  * socket is given connects the socket to the new target */
-int set_target(struct sockaddr_in *adr, unsigned long target, int port, int socket, int connected) {
+int set_target(struct addrinfo *res, int socket, int connected) {
 #ifdef WITH_TLS_TRANSP
 	int ret;
 # ifdef USE_OPENSSL
@@ -1161,17 +1161,12 @@ int set_target(struct sockaddr_in *adr, unsigned long target, int port, int sock
 		}
 	}
 
-	memset(adr, 0, sizeof(struct sockaddr_in));
-	adr->sin_addr.s_addr = target;
-	adr->sin_port = htons((short)port);
-	adr->sin_family = AF_INET;
-
 #ifdef HAVE_INET_NTOP
-	inet_ntop(adr->sin_family, &adr->sin_addr, &target_dot[0], INET_ADDRSTRLEN);
+	inet_ntop(res->ai_family, &res->ai_addr, &target_dot[0], INET_ADDRSTRLEN);
 #endif
 
 	if (socket != -1) {
-		if (connect(socket, (struct sockaddr *)adr, sizeof(struct sockaddr_in)) == -1) {
+		if (connect(socket, res->ai_addr, res->ai_addrlen) == -1) {
 			perror("connecting socket failed");
 			exit_code(2, __PRETTY_FUNCTION__, "connecting socket failed");
 		}
