@@ -478,57 +478,111 @@ void increase_cseq(char *message, char *reply)
 	}
 }
 
-/* separates the given URI into the parts by setting the pointer but it
-   destroyes the URI */
-void parse_uri(char *uri, char **scheme, char **user, char **host, int *port)
+static ssize_t parse_scheme(char *p, size_t len, char **scheme)
 {
-	char *col, *col2, *at;
-	col = col2 = at = NULL;
-	*port = 0;
-	*scheme = *user = *host = NULL;
-	if ((col=strchr(uri,':'))!=NULL) {
-		if ((at=strchr(uri,'@'))!=NULL) {
-			*col = '\0';
-			*at = '\0';
-			if (at > col) {
-				*scheme = uri;
-				*user = ++col;
-				*host = ++at;
-				if ((col2=strchr(*host,':'))!=NULL) {
-					*col2 = '\0';
-					*port = str_to_int(1, ++col2);
-				}
-			}
-			else {
-				*user = uri;
-				*host = ++at;
-				*port = str_to_int(1, ++col);
-			}
-		}
-		else {
-			*col = '\0';
-			col++;
-			if ((col2=strchr(col,':'))!=NULL) {
-				*col2 = '\0';
-				*scheme = uri;
-				*host = col;
-				*port = str_to_int(1, ++col2);
-			}
-			else {
-				if (is_number(col)) {
-					*host = uri;
-					*port = str_to_int(1, col);
-				}
-				else {
-					*scheme = uri;
-					*host = col;
-				}
-			}
+	size_t term = 0;
+
+	if (len < 5) {
+		return -1;
+	} else if (p[0] == 's' && p[1] == 'i' && p[2] == 'p') {
+		if (p[3] == ':') {
+			term = 3;
+		} else if (p[3] == 's' && p[4] == ':') {
+			term = 4;
 		}
 	}
-	else {
-		*host = uri;
+
+	if (!term) {
+		return 0;
 	}
+
+	*scheme = p;
+	p[term] = 0;
+	return (ssize_t)term + 1;
+}
+
+static ssize_t parse_user(char *p, size_t len, char **user)
+{
+	/* rfc3261 specifically says, in order to discourage plain text
+	 * passwords, that I'm free to ignore it (and treat the password as
+	 * part of the user segment instead)
+	 */
+
+	size_t term = strcspn(p, "@");
+
+	if (term < len && p[term] == '@') {
+		*user = p;
+		p[term] = 0;
+		return (ssize_t)term + 1;
+	}
+
+	return 0;
+}
+
+static ssize_t parse_host(char *p, size_t len, char **host, int *port)
+{
+	size_t term = 0, colon = 0;
+	off_t ip_offset = 0;
+
+	if (len == 0) {
+		return -1;
+	}
+
+	if (p[0] == '[') {
+		ip_offset = 1;
+		term = strcspn(p, "]");
+
+		if (term == len) {
+			return -1;
+		} else if (p[term + 1] != '\0' && p[term + 1] != ':') {
+			return -1;
+		}
+
+		colon = term + 1;
+	} else {
+		colon = term = strcspn(p, ":");
+	}
+
+	p[term] = 0;
+	*host = &p[ip_offset];
+
+	if (colon < len) {
+		*port = atoi(&p[colon + 1]);
+	} else {
+		*port = 5060;
+	}
+
+	return len;
+}
+
+ssize_t parse_uri(char *uri, char **scheme, char **user, char **host, int *port)
+{
+	const size_t uri_len = strlen(uri);
+
+	size_t bytes_left = uri_len;
+	char *p = uri;
+
+	ssize_t nbytes_r = parse_scheme(p, bytes_left, scheme);
+	if (nbytes_r < 0) {
+		return -1;
+	} else if (nbytes_r == 0) {
+		*host = p;
+		return (ssize_t)uri_len;
+	}
+
+	p = &p[nbytes_r];
+	bytes_left -= nbytes_r;
+
+	nbytes_r = parse_user(p, bytes_left, user);
+
+	p = &p[nbytes_r];
+	bytes_left -= nbytes_r;
+
+	if (parse_host(p, bytes_left, host, port) < 0) {
+		return -1;
+	}
+
+	return (ssize_t)uri_len;
 }
 
 /* return a copy of the URI from the Contact of the message if found */
