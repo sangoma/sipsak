@@ -45,7 +45,10 @@ struct sipsak_sr_time {
 };
 
 struct sipsak_con_data {
-	struct sockaddr_in adr;
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in6 in6;
+	} adr;
 	int csock;
 	int usock;
 	int dontsend;
