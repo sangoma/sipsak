@@ -754,7 +754,7 @@ void send_message(char* mes, struct sipsak_con_data *cd,
 		}
 #ifdef HAVE_INET_NTOP
 		if (verbose > 2) {
-			printf("\nsend to: %s:%s:%i\n", transport_str, target_dot, rport);
+			printf("\nsend to: %s [%s]:%i\n", transport_str, target_dot, rport);
     }
 #endif
 		sc->send_counter++;
@@ -1128,7 +1128,7 @@ int recv_message(char *buf, int size, int inv_trans,
 		}
 #ifdef HAVE_INET_NTOP
 		if ((verbose > 2) && (getpeername(sock, &peer_adr.sa, &psize) == 0) && (inet_ntop(peer_adr.sa.sa_family, &peer_adr.in6.sin6_addr, &source_dot[0], INET_ADDRSTRLEN) != NULL)) {
-			printf("\nreceived from: %s:%s:%i\n", transport_str, 
+			printf("\nreceived from: %s [%s]:%i\n", transport_str,
 						source_dot, ntohs(peer_adr.in6.sin6_port));
 		}
 		else if (verbose > 1 && trace == 0 && usrloc == 0)
