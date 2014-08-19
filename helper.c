@@ -67,6 +67,10 @@
 
 #endif // HAVE_CARES_H
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include "helper.h"
 #include "exit_code.h"
 
@@ -508,77 +512,67 @@ int getsrvadr(char *host, struct addrinfo *res) {
 /* because the full qualified domain name is needed by many other
    functions it will be determined by this function.
 */
-void get_fqdn() {
+void get_fqdn(int family){
 	char hname[100], dname[100], hlp[18];
-	size_t namelen=100;
-	struct hostent* he;
-	struct utsname un;
 
 	memset(&hname, 0, sizeof(hname));
 	memset(&dname, 0, sizeof(dname));
 	memset(&hlp, 0, sizeof(hlp));
 
 	if (hostname) {
-		strncpy(fqdn, hostname, FQDN_SIZE-1);
-		strncpy(hname, hostname, sizeof(hname)-1);
-	}
-	else {
-		if ((uname(&un))==0) {
-			strncpy(hname, un.nodename, sizeof(hname)-1);
-		}
-		else {
-			if (gethostname(&hname[0], namelen) < 0) {
-				fprintf(stderr, "error: cannot determine hostname\n");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to determine hostname");
-			}
-		}
-#ifdef HAVE_GETDOMAINNAME
-		/* a hostname with dots should be a domainname */
-		if ((strchr(hname, '.'))==NULL) {
-			if (getdomainname(&dname[0], namelen) < 0) {
-				fprintf(stderr, "error: cannot determine domainname\n");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to get domainname");
-			}
-			if (strcmp(&dname[0],"(none)")!=0)
-				snprintf(fqdn, FQDN_SIZE, "%s.%s", hname, dname);
-		}
-		else {
-			strncpy(fqdn, hname, FQDN_SIZE-1);
-		}
-#endif
+		strncpy(hname, hostname, 100);
+	} else if (gethostname(hname, sizeof(hname)) < 0) {
+		exit_code(2, __PRETTY_FUNCTION__, "failed to determine hostname");
 	}
 
-	if (!(numeric == 1 && is_ip(fqdn))) {
-		he=gethostbyname(hname);
-		if (he) {
-			if (numeric == 1) {
-				snprintf(hlp, sizeof(hlp), "%s", inet_ntoa(*(struct in_addr *) he->h_addr_list[0]));
-				strncpy(fqdn, hlp, FQDN_SIZE-1);
+	struct addrinfo *res, *p;
+	int error;
+
+	struct addrinfo hints = {
+		.ai_family = numeric ? family : AF_UNSPEC,
+		.ai_flags  = AI_CANONNAME
+	};
+
+	error = getaddrinfo(hname, NULL, &hints, &res);
+	if (error) {
+		fprintf(stderr, "error: getaddrinfo failed: %s\n", gai_strerror(error));
+		exit_code(2, __PRETTY_FUNCTION__, "failed to get addrinfo");
+	}
+
+	for (p = res; p != NULL; p = p->ai_next) {
+		if (!numeric && p->ai_canonname) {
+			strncpy(fqdn, res->ai_canonname, FQDN_SIZE);
+			break;
+		} else if (numeric) {
+			size_t offset = 0;
+
+			if (numeric && res->ai_family == AF_INET6) {
+				fqdn[0] = '[';
+				offset = 1;
 			}
-			else {
-				if ((strchr(he->h_name, '.'))!=NULL && (strchr(hname, '.'))==NULL) {
-					strncpy(fqdn, he->h_name, FQDN_SIZE-1);
-				}
-				else {
-					strncpy(fqdn, hname, FQDN_SIZE-1);
-				}
+
+			error = getnameinfo(res->ai_addr, res->ai_addrlen,
+								fqdn + offset, FQDN_SIZE, NULL, 0,
+								numeric ? NI_NUMERICHOST : 0);
+			if (error) {
+				fprintf(stderr, "error: getnameinfo failed: %s\n", gai_strerror(error));
+				exit_code(2, __PRETTY_FUNCTION__, "getnameinfo failed");
 			}
-		}
-		else {
-			fprintf(stderr, "error: cannot resolve local hostname: %s\n", hname);
-			exit_code(2, __PRETTY_FUNCTION__, "failed to resolve local hostname");
+
+			// fqdn is more than large enough to store the longest valid
+			// ipv6 address
+			if (numeric && res->ai_family == AF_INET6) {
+				strcat(fqdn, "]");
+			}
+			break;
 		}
 	}
-	if ((strchr(fqdn, '.'))==NULL) {
-		if (hostname) {
-			fprintf(stderr, "warning: %s is not resolvable... continouing anyway\n", fqdn);
-			strncpy(fqdn, hostname, FQDN_SIZE-1);
-		}
-		else {
-			fprintf(stderr, "error: this FQDN or IP is not valid: %s\n", fqdn);
-			exit_code(2, __PRETTY_FUNCTION__, "invalid IP or FQDN");
-		}
+
+	if (res == NULL) {
+		exit_code(2, __PRETTY_FUNCTION__, "cannot resolve local hostname");
 	}
+
+	freeaddrinfo(res);
 
 	if (verbose > 2)
 		printf("fqdnhostname: %s\n", fqdn);

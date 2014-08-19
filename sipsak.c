@@ -1029,7 +1029,7 @@ int main(int argc, char *argv[])
 #endif /* WITH_TLS_TRANSP */
 
 	/* determine our hostname */
-	get_fqdn();
+	get_fqdn(address.ai_family);
 	
 	/* this is not a cryptographic random number generator,
 	   but hey this is only a test-tool => should be satisfying*/

@@ -66,7 +66,7 @@ int getaddress(char *host, int rport, int transport, struct addrinfo *ret);
 
 int getsrvadr(char *host, struct addrinfo *ret);
 
-void get_fqdn();
+void get_fqdn(int family);
 
 void replace_string(char *mes, char *search, char *replacement);
 
