@@ -333,6 +333,7 @@ char *username, *proxyname, *domainname, *password, *replace_str, *hostname, *co
 char *mes_body, *con_dis, *auth_username, *from_uri, *headers, *authhash, *srcaddr;
 char fqdn[FQDN_SIZE];
 char target_dot[INET6_ADDRSTRLEN], source_dot[INET6_ADDRSTRLEN];
+char target_serv[NI_MAXSERV], source_serv[NI_MAXSERV];
 char *req, *rep, *rec, *transport_str;
 regex_t* re;
 

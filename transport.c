@@ -754,7 +754,7 @@ void send_message(char* mes, struct sipsak_con_data *cd,
 		}
 #ifdef HAVE_INET_NTOP
 		if (verbose > 2) {
-			printf("\nsend to: %s [%s]:%i\n", transport_str, target_dot, rport);
+			printf("\nsend to: %s [%s]:%s\n", transport_str, target_dot, target_serv);
     }
 #endif
 		sc->send_counter++;
@@ -981,6 +981,7 @@ int recv_message(char *buf, int size, int inv_trans,
 #ifdef HAVE_INET_NTOP
 	union {
 		struct sockaddr sa;
+		struct sockaddr_in in;
 		struct sockaddr_in6 in6;
 	} peer_adr;
 	socklen_t psize = sizeof(peer_adr);
@@ -1127,9 +1128,11 @@ int recv_message(char *buf, int size, int inv_trans,
 			sd->all_delay += tmp_delay;
 		}
 #ifdef HAVE_INET_NTOP
-		if ((verbose > 2) && (getpeername(sock, &peer_adr.sa, &psize) == 0) && (inet_ntop(peer_adr.sa.sa_family, &peer_adr.in6.sin6_addr, &source_dot[0], INET6_ADDRSTRLEN) != NULL)) {
-			printf("\nreceived from: %s [%s]:%i\n", transport_str,
-						source_dot, ntohs(peer_adr.in6.sin6_port));
+		if (verbose > 2 && getpeername(sock, &peer_adr.sa, &psize) == 0) {
+			getnameinfo(&peer_adr.sa, psize, source_dot, sizeof(source_dot),
+						source_serv, sizeof(source_serv),
+						NI_NUMERICHOST | NI_NUMERICSERV);
+			printf("\nreceived from: %s [%s]:%s\n", transport_str, source_dot, source_serv);
 		}
 		else if (verbose > 1 && trace == 0 && usrloc == 0)
 			printf(":\n");
@@ -1167,7 +1170,9 @@ int set_target(struct addrinfo *res, int socket, int connected) {
 	}
 
 #ifdef HAVE_INET_NTOP
-	getnameinfo(res->ai_addr, res->ai_addrlen, target_dot, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
+	getnameinfo(res->ai_addr, res->ai_addrlen, target_dot, sizeof(target_dot),
+				target_serv, sizeof(target_serv),
+				NI_NUMERICHOST | NI_NUMERICSERV);
 #endif
 
 	if (socket != -1) {
