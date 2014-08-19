@@ -42,8 +42,8 @@
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
-#ifndef INET_ADDRSTRLEN
-# define INET_ADDRSTRLEN 16
+#ifndef INET6_ADDRSTRLEN
+# define INET6_ADDRSTRLEN 16
 #endif
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>
@@ -332,7 +332,7 @@ int timer_t1, timer_t2, timer_final, sysl;
 char *username, *proxyname, *domainname, *password, *replace_str, *hostname, *contact_uri;
 char *mes_body, *con_dis, *auth_username, *from_uri, *headers, *authhash, *srcaddr;
 char fqdn[FQDN_SIZE];
-char target_dot[INET_ADDRSTRLEN], source_dot[INET_ADDRSTRLEN];
+char target_dot[INET6_ADDRSTRLEN], source_dot[INET6_ADDRSTRLEN];
 char *req, *rep, *rec, *transport_str;
 regex_t* re;
 

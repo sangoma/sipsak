@@ -685,7 +685,7 @@ void create_sockets(struct sipsak_con_data *cd) {
 	/* for the via line we need our listening port number */
 	if (lport==0) {
 		memset(&cd->adr, 0, sizeof(cd->adr));
-		slen=sizeof(struct sockaddr_in);
+		slen=sizeof(cd->adr);
 		if (symmetric || transport != SIP_UDP_TRANSPORT)
 			getsockname(cd->csock, &cd->adr.sa, &slen);
 		else
@@ -1062,7 +1062,7 @@ int recv_message(char *buf, int size, int inv_trans,
 			if ((srcport == lport) && (dstport == rport)) {
 				printf(" (type: %u, code: %u)", icmp_hdr->icmp_type, icmp_hdr->icmp_code);
 #ifdef HAVE_INET_NTOP
-				if (inet_ntop(AF_INET6, &faddr, &source_dot[0], INET_ADDRSTRLEN) != NULL)
+				if (inet_ntop(AF_INET6, &faddr, &source_dot[0], INET6_ADDRSTRLEN) != NULL)
 					printf(": from %s\n", source_dot);
 				else
 					printf("\n");
@@ -1127,7 +1127,7 @@ int recv_message(char *buf, int size, int inv_trans,
 			sd->all_delay += tmp_delay;
 		}
 #ifdef HAVE_INET_NTOP
-		if ((verbose > 2) && (getpeername(sock, &peer_adr.sa, &psize) == 0) && (inet_ntop(peer_adr.sa.sa_family, &peer_adr.in6.sin6_addr, &source_dot[0], INET_ADDRSTRLEN) != NULL)) {
+		if ((verbose > 2) && (getpeername(sock, &peer_adr.sa, &psize) == 0) && (inet_ntop(peer_adr.sa.sa_family, &peer_adr.in6.sin6_addr, &source_dot[0], INET6_ADDRSTRLEN) != NULL)) {
 			printf("\nreceived from: %s [%s]:%i\n", transport_str,
 						source_dot, ntohs(peer_adr.in6.sin6_port));
 		}
@@ -1167,7 +1167,7 @@ int set_target(struct addrinfo *res, int socket, int connected) {
 	}
 
 #ifdef HAVE_INET_NTOP
-	inet_ntop(res->ai_family, &res->ai_addr, &target_dot[0], INET_ADDRSTRLEN);
+	getnameinfo(res->ai_addr, res->ai_addrlen, target_dot, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
 #endif
 
 	if (socket != -1) {
