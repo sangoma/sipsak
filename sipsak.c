@@ -822,7 +822,7 @@ int main(int argc, char *argv[])
 	timer_final = timer_final * timer_t1;
 	char *target = outbound_proxy ? proxyname : domainname;
 
-	if (is_ip(target) || rport) {
+	if (target) {
 		getaddress(target, rport, transport, &address);
 	} else {
 		if (getsrvadr(host, &address) < 0) {
