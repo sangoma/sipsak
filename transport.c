@@ -978,15 +978,6 @@ int recv_message(char *buf, int size, int inv_trans,
 	} peer_adr;
 	socklen_t psize = sizeof(peer_adr);
 #endif
-#ifdef RAW_SUPPORT
-	struct sockaddr_in faddr;
-	struct ip 		*r_ip_hdr, *s_ip_hdr;
-	struct icmp 	*icmp_hdr;
-	struct udphdr 	*udp_hdr;
-	size_t r_ip_len, s_ip_len, icmp_len;
-	int srcport, dstport;
-	unsigned int flen;
-#endif
 
 	if (cd->buf_tmp) {
 		buf = cd->buf_tmp;
@@ -1020,6 +1011,14 @@ int recv_message(char *buf, int size, int inv_trans,
 	}
 #ifdef RAW_SUPPORT
 	else {
+		struct sockaddr_in faddr;
+		struct ip		*r_ip_hdr, *s_ip_hdr;
+		struct icmp		*icmp_hdr;
+		struct udphdr	*udp_hdr;
+		size_t r_ip_len, s_ip_len, icmp_len;
+		int srcport, dstport;
+		unsigned int flen;
+
 		/* lets check if the ICMP message matches with our 
 		   sent packet */
 		flen = sizeof(faddr);
