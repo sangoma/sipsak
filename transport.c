@@ -974,8 +974,7 @@ int recv_message(char *buf, int size, int inv_trans,
 #ifdef HAVE_INET_NTOP
 	union {
 		struct sockaddr sa;
-		struct sockaddr_in in;
-		struct sockaddr_in6 in6;
+		struct sockaddr_storage ss;
 	} peer_adr;
 	socklen_t psize = sizeof(peer_adr);
 #endif
