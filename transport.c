@@ -1056,7 +1056,7 @@ int recv_message(char *buf, int size, int inv_trans,
 			if ((srcport == lport) && (dstport == rport)) {
 				printf(" (type: %u, code: %u)", icmp_hdr->icmp_type, icmp_hdr->icmp_code);
 #ifdef HAVE_INET_NTOP
-				if (inet_ntop(AF_INET6, &faddr, &source_dot[0], INET6_ADDRSTRLEN) != NULL)
+				if (inet_ntop(AF_INET, &faddr, &source_dot[0], sizeof(source_dot)) != NULL)
 					printf(": from %s\n", source_dot);
 				else
 					printf("\n");
