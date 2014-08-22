@@ -577,6 +577,13 @@ void create_sockets(struct sipsak_con_data *cd, int family) {
 	const char *pp_socktype;
 	int error;
 
+	union {
+		struct sockaddr sa;
+		struct sockaddr_storage ss;
+	} sa;
+	socklen_t slen = sizeof(sa);
+	char srcaddr_dot[NI_MAXHOST], srcaddr_serv[NI_MAXSERV];
+
 	if (transport == SIP_UDP_TRANSPORT) {
 		hints.ai_socktype = SOCK_DGRAM;
 		hints.ai_protocol = IPPROTO_UDP;
@@ -656,30 +663,19 @@ void create_sockets(struct sipsak_con_data *cd, int family) {
 			dbg("initialized tls socket %i\n", cd->csock);
 		}
 #endif /* WITH_TLS_TRANSP */
+
+		getsockname(cd->csock, &sa.sa, &slen);
+	} else {
+		getsockname(cd->usock, &sa.sa, &slen);
 	}
+
+	getnameinfo(&sa.sa, slen, srcaddr_dot, sizeof(srcaddr_dot),
+				srcaddr_serv, sizeof(srcaddr_serv),
+				NI_NUMERICHOST | NI_NUMERICSERV);
+	printf("srcaddr=[%s]:%s\n", srcaddr_dot, srcaddr_serv);
 
 	/* for the via line we need our listening port number */
 	if (lport == 0) {
-		/* TODO: fix up, we have source_dot / source_serv. This could be
-		 * AF neutral. */
-		union {
-			struct sockaddr sa;
-			struct sockaddr_storage ss;
-		} sa;
-		socklen_t slen = sizeof(sa);
-
-		if (symmetric || transport != SIP_UDP_TRANSPORT)
-			getsockname(cd->csock, &sa.sa, &slen);
-		else
-			getsockname(cd->usock, &sa.sa, &slen);
-
-		char srcaddr_dot[NI_MAXHOST], srcaddr_serv[NI_MAXSERV];
-
-		getnameinfo(&sa.sa, slen, srcaddr_dot, sizeof(srcaddr_dot),
-					srcaddr_serv, sizeof(srcaddr_serv),
-					NI_NUMERICHOST | NI_NUMERICSERV);
-
-		printf("srcaddr=[%s]:%s\n", srcaddr_dot, srcaddr_serv);
 		sscanf(srcaddr_serv, "%d", &lport);
 	}
 }
