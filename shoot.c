@@ -841,7 +841,7 @@ void shoot(char *buf, int buff_size)
 	rep = buf2;
 	rec = buf3;
 
-	create_sockets(&cdata);
+	create_sockets(&cdata, address.ai_family);
 
 	if (sleep_ms != 0) {
 		if (sleep_ms == -2) {

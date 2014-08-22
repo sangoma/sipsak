@@ -103,6 +103,7 @@
 #endif /* WITH_TLS_TRANSP */
 
 #include <string.h>
+#include <err.h>
 #include "exit_code.h"
 #include "helper.h"
 #include "header_f.h"
@@ -570,91 +571,60 @@ static inline char* get_body(char *mes) {
 	return cr;
 }
 
-void create_sockets(struct sipsak_con_data *cd) {
-	socklen_t slen;
-
-	cd->adr.in6 = (struct sockaddr_in6){
-		.sin6_family = AF_INET6,
-		.sin6_addr = in6addr_any,
-		.sin6_port = htons((short)lport)
-	};
-
-	if (srcaddr) {
-		if (inet_pton(cd->adr.sa.sa_family, srcaddr, &cd->adr.in6.sin6_addr) != 1) {
-			fprintf(stderr, "Invalid srcaddr=%s, defaulting to INADDR_ANY\n", srcaddr);
-			cd->adr.in6.sin6_addr = in6addr_any;
-		} else {
-			printf("\nUsing srcaddr=%s\n", srcaddr);
-		}
-	}
+void create_sockets(struct sipsak_con_data *cd, int family) {
+	struct addrinfo hints = { .ai_family = family };
+	struct addrinfo *res, *p;
+	const char *pp_socktype;
+	int error;
 
 	if (transport == SIP_UDP_TRANSPORT) {
-		/* create the un-connected socket */
-		if (!symmetric) {
-			cd->usock = (int)socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-			if (cd->usock==-1) {
-				perror("unconnected UDP socket creation failed");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to create unconnected UDP socket");
-			}
-			if (bind(cd->usock, &cd->adr.sa, sizeof(cd->adr)) == -1) {
-				perror("unconnected UDP socket binding failed");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to bind unconnected UDP socket");
-			}
-		}
+		hints.ai_socktype = SOCK_DGRAM;
+		hints.ai_protocol = IPPROTO_UDP;
+		pp_socktype = symmetric ? "connected UDP" : "unconnected UDP";
+	} else {
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		pp_socktype = "TCP";
+	}
 
+	error = getaddrinfo(srcaddr, NULL, &hints, &res);
+	if (error) {
+		exit_code(2, __PRETTY_FUNCTION__, "getaddrinfo failed");
+	}
+
+	p = res;
+
+	if (transport == SIP_UDP_TRANSPORT && !symmetric) {
+		cd->usock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (cd->usock < 0) {
+			err(2, "%s socket creation failed", pp_socktype);
+		}
+		if (bind(cd->usock, p->ai_addr, p->ai_addrlen) < 0) {
+			err(2, "%s socket binding failed", pp_socktype);
+		}
 
 #ifdef RAW_SUPPORT
-		/* try to create the raw socket */
-
-		/* TODO: The raw socket support currently is only implemented
-		 * for ipv4 sockets atm. */
-		if (cd->adr.sa.sa_family == AF_INET) {
-			rawsock = socket(cd->adr.sa.sa_family, SOCK_RAW, IPPROTO_ICMP);
+		/* try to create the raw socket. TODO: the raw socket support
+		 * currently is only implemented for ipv4 sockets atm. */
+		if (p->ai_family == AF_INET) {
+			rawsock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 		}
 
-		if (rawsock==-1) {
-			if (verbose>1)
-				fprintf(stderr, "warning: need raw socket (root privileges) to receive all ICMP errors\n");
-#endif
-			/* create the connected socket as a primitve alternative to the 
-			   raw socket*/
-			cd->csock = (int)socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-			if (cd->csock==-1) {
-				perror("connected UDP socket creation failed");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to create connected UDP socket");
-			}
-
-			if (!symmetric)
-				cd->adr.in6.sin6_port = htons((short)0);
-			if (bind(cd->csock, &cd->adr.sa, sizeof(cd->adr)) == -1) {
-				perror("connected UDP socket binding failed");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to bind connected UDP socket");
-			}
-#ifdef RAW_SUPPORT
-		}
-		else if (symmetric) {
-			cd->csock = (int)socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-			if (cd->csock==-1) {
-				perror("connected UDP socket creation failed");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to create connected UDP socket");
-			}
-			if (bind(cd->csock, &cd->adr.sa, sizeof(cd->adr)) == -1) {
-				perror("connected UDP socket binding failed");
-				exit_code(2, __PRETTY_FUNCTION__, "failed to bind connected UDP socket");
-			}
+		if (rawsock == -1 && verbose > 1) { 
+			fprintf(stderr, "warning: need raw socket (root privileges) to receive all ICMP errors\n");
 		}
 #endif
 	}
-	else {
-		cd->csock = (int)socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-		if (cd->csock==-1) {
-			perror("TCP socket creation failed");
-			exit_code(2, __PRETTY_FUNCTION__, "failed to create TCP socket");
+
+	if (rawsock == -1 || symmetric || transport != SIP_UDP_TRANSPORT) {
+		cd->csock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (cd->csock < 0) {
+			err(2, "%s socket creation failed", pp_socktype);
 		}
-		if (bind(cd->csock, &cd->adr.sa, sizeof(cd->adr)) == -1) {
-			perror("TCP socket binding failed");
-			exit_code(2, __PRETTY_FUNCTION__, "failed to bind TCP socket");
+		if (bind(cd->csock, p->ai_addr, p->ai_addrlen) < 0) {
+			err(2, "%s socket binding failed", pp_socktype);
 		}
+
 #ifdef WITH_TLS_TRANSP
 		if (transport == SIP_TLS_TRANSPORT) {
 #ifdef USE_GNUTLS
@@ -691,7 +661,7 @@ void create_sockets(struct sipsak_con_data *cd) {
 	/* for the via line we need our listening port number */
 	if (lport==0) {
 		memset(&cd->adr, 0, sizeof(cd->adr));
-		slen=sizeof(cd->adr);
+		socklen_t slen=sizeof(cd->adr);
 		if (symmetric || transport != SIP_UDP_TRANSPORT)
 			getsockname(cd->csock, &cd->adr.sa, &slen);
 		else

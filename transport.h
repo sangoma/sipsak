@@ -73,7 +73,7 @@ struct sipsak_delay {
 	double all_delay;
 };
 
-void create_sockets(struct sipsak_con_data *cd);
+void create_sockets(struct sipsak_con_data *cd, int family);
 
 void close_sockets(struct sipsak_con_data *cd);
 
