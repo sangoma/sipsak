@@ -108,7 +108,7 @@
 #include "header_f.h"
 
 #ifdef RAW_SUPPORT
-int rawsock;
+int rawsock = -1;
 #endif
 
 #ifdef WITH_TLS_TRANSP
@@ -605,7 +605,13 @@ void create_sockets(struct sipsak_con_data *cd) {
 
 #ifdef RAW_SUPPORT
 		/* try to create the raw socket */
-		rawsock = (int)socket(AF_INET6, SOCK_RAW, IPPROTO_ICMP);
+
+		/* TODO: The raw socket support currently is only implemented
+		 * for ipv4 sockets atm. */
+		if (cd->adr.sa.sa_family == AF_INET) {
+			rawsock = socket(cd->adr.sa.sa_family, SOCK_RAW, IPPROTO_ICMP);
+		}
+
 		if (rawsock==-1) {
 			if (verbose>1)
 				fprintf(stderr, "warning: need raw socket (root privileges) to receive all ICMP errors\n");
