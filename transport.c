@@ -701,7 +701,7 @@ void send_message(char* mes, struct sipsak_con_data *cd,
 		/* lets fire the request to the server and store when we did */
 		if (cd->csock == -1) {
 			dbg("\nusing un-connected socket for sending\n");
-			ret = sendto(cd->usock, mes, strlen(mes), 0, &cd->adr.sa, sizeof(cd->adr));
+			ret = sendto(cd->usock, mes, strlen(mes), 0, address.ai_addr, address.ai_addrlen);
 		}
 		else {
 			dbg("\nusing connected socket for sending\n");
