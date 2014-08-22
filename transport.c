@@ -659,14 +659,31 @@ void create_sockets(struct sipsak_con_data *cd, int family) {
 	}
 
 	/* for the via line we need our listening port number */
-	if (lport==0) {
-		memset(&cd->adr, 0, sizeof(cd->adr));
-		socklen_t slen=sizeof(cd->adr);
+	if (lport == 0) {
+		/* TODO: fix up, we have source_dot / source_serv. This could be
+		 * AF neutral. */
+		union {
+			struct sockaddr sa;
+			struct sockaddr_in in;
+			struct sockaddr_in6 in6;
+		} sa;
+		socklen_t slen = sizeof(sa);
+
 		if (symmetric || transport != SIP_UDP_TRANSPORT)
-			getsockname(cd->csock, &cd->adr.sa, &slen);
+			getsockname(cd->csock, &sa.sa, &slen);
 		else
-			getsockname(cd->usock, &cd->adr.sa, &slen);
-		lport=ntohs(cd->adr.in6.sin6_port);
+			getsockname(cd->usock, &sa.sa, &slen);
+
+		switch (sa.sa.sa_family) {
+		case AF_INET:
+			lport = ntohs(sa.in.sin_port);
+			break;
+		case AF_INET6:
+			lport = ntohs(sa.in6.sin6_port);
+			break;
+		default:
+			exit_code(2, __PRETTY_FUNCTION__, "didn't understand socket family");
+		}
 	}
 }
 
