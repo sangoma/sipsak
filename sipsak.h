@@ -332,7 +332,7 @@ int timer_t1, timer_t2, timer_final, sysl;
 char *username, *proxyname, *domainname, *password, *replace_str, *hostname, *contact_uri;
 char *mes_body, *con_dis, *auth_username, *from_uri, *headers, *authhash, *srcaddr;
 char fqdn[FQDN_SIZE];
-char target_dot[INET6_ADDRSTRLEN], source_dot[INET6_ADDRSTRLEN];
+char target_dot[NI_MAXSERV], source_dot[NI_MAXSERV];
 char target_serv[NI_MAXSERV], source_serv[NI_MAXSERV];
 char *req, *rep, *rec, *transport_str;
 regex_t* re;
