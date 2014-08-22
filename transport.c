@@ -664,8 +664,7 @@ void create_sockets(struct sipsak_con_data *cd, int family) {
 		 * AF neutral. */
 		union {
 			struct sockaddr sa;
-			struct sockaddr_in in;
-			struct sockaddr_in6 in6;
+			struct sockaddr_storage ss;
 		} sa;
 		socklen_t slen = sizeof(sa);
 
@@ -674,16 +673,14 @@ void create_sockets(struct sipsak_con_data *cd, int family) {
 		else
 			getsockname(cd->usock, &sa.sa, &slen);
 
-		switch (sa.sa.sa_family) {
-		case AF_INET:
-			lport = ntohs(sa.in.sin_port);
-			break;
-		case AF_INET6:
-			lport = ntohs(sa.in6.sin6_port);
-			break;
-		default:
-			exit_code(2, __PRETTY_FUNCTION__, "didn't understand socket family");
-		}
+		char srcaddr_dot[NI_MAXHOST], srcaddr_serv[NI_MAXSERV];
+
+		getnameinfo(&sa.sa, slen, srcaddr_dot, sizeof(srcaddr_dot),
+					srcaddr_serv, sizeof(srcaddr_serv),
+					NI_NUMERICHOST | NI_NUMERICSERV);
+
+		printf("srcaddr=[%s]:%s\n", srcaddr_dot, srcaddr_serv);
+		sscanf(srcaddr_serv, "%d", &lport);
 	}
 }
 
