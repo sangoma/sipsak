@@ -63,9 +63,9 @@
  char *ca_tmpname;
  ares_channel channel;
 
-#define INT_DIGITS10 ((CHAR_BIT * sizeof(int) - 1) / 3 + 2)
-
 #endif // HAVE_CARES_H
+
+#define INT_DIGITS10 ((CHAR_BIT * sizeof(int) - 1) / 3 + 2)
 
 #include <sys/types.h>
 #include <sys/socket.h>
