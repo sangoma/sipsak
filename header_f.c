@@ -104,7 +104,6 @@ void cpy_vias(char *reply, char *dest){
 		exit_code(3, __PRETTY_FUNCTION__, "missing Via header in message");
 	}
 	last_via=first_via+4;
-	middle_via=last_via;
 	/* proceed additional via lines */
 	while ((middle_via=STRCASESTR(last_via, VIA_STR))!=NULL ||
 		   (middle_via=STRCASESTR(last_via, VIA_SHORT_STR))!=NULL )
