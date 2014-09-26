@@ -541,7 +541,7 @@ void get_fqdn(int family){
 
 	for (p = res; p != NULL; p = p->ai_next) {
 		if (!numeric && p->ai_canonname) {
-			strncpy(fqdn, res->ai_canonname, FQDN_SIZE);
+			strncpy(fqdn, p->ai_canonname, FQDN_SIZE);
 			break;
 		} else if (numeric) {
 			size_t offset = 0;
