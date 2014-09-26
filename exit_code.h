@@ -26,6 +26,6 @@ extern enum exit_modes exit_mode;
 
 void log_message(const char *message);
 
-void exit_code(int code, const char *function, const char *reason);
+void exit_code(int code, const char *function, const char *reason) __attribute__((noreturn));
 
 #endif
