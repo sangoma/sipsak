@@ -240,7 +240,7 @@ void print_help() {
 		"  -Z NUMBER         timeout T1 in ms (default: %i)\n"
 		"  -E STRING         specify transport to be used\n"
 		"  -j STRING         adds additional headers to the request\n"
-		"  -X STRING         ha1 hash for authentication instead of password\n"
+		"  -J STRING         ha1 hash for authentication instead of password\n"
 		"  -K NUMBER         log exit message to syslog with given log level\n"
 		"  -X STRING         the source address for traffic\n"
 		, DEFAULT_TIMEOUT
