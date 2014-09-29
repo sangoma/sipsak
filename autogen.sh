@@ -1,5 +1,3 @@
 #!/bin/sh
 
-aclocal \
-&& automake --add-missing \
-&& autoconf
+autoreconf --force --install -I m4
