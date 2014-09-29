@@ -735,9 +735,8 @@ int is_number(char *number) {
 int str_to_int(const char *num) {
 	char *end;
 
-	const char *start = num;
-	while (*start && isspace(*start))
-		start++;
+	const char *start;
+	for (start = num; *start && isspace(*start); ++start);
 
 	errno = 0;
 
