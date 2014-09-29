@@ -419,10 +419,10 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case 'A':
-				timing=str_to_int(0, optarg);
+				timing=str_to_int(optarg);
 				break;
 			case 'b':
-				namebeg=str_to_int(0, optarg);
+				namebeg=str_to_int(optarg);
 				break;
 			case 'B':
 				mes_body=str_alloc(strlen(optarg) + 1);
@@ -488,14 +488,14 @@ int main(int argc, char *argv[])
 				redirects=0;
 				break;
 			case 'D':
-				timer_final = str_to_int(0, optarg);
+				timer_final = str_to_int(optarg);
 				if (timer_final <= 0) {
 					fprintf(stderr, "error: option D has to be above 0\n");
 					exit_code(2, __PRETTY_FUNCTION__, "option D has to be above 0");
 				}
 				break;
 			case 'e':
-				nameend=str_to_int(0, optarg);
+				nameend=str_to_int(optarg);
 				break;
 			case 'E':
 				if (strlen(optarg) == 3 && 
@@ -578,7 +578,7 @@ int main(int argc, char *argv[])
 				authhash=optarg;
 				break;
 			case 'K':
-				sysl=str_to_int(0, optarg);
+				sysl=str_to_int(optarg);
 				if (sysl < LOG_ALERT || sysl > LOG_DEBUG) {
 					fprintf(stderr, "error: syslog value '%s' must be between ALERT (1) and DEBUG (7)\n", optarg);
 					exit_code(2, __PRETTY_FUNCTION__, "unsupported syslog value for option K");
@@ -588,16 +588,16 @@ int main(int argc, char *argv[])
 #endif
 				break;
 			case 'k':
-				retrans_limit=str_to_int(0, optarg);
+				retrans_limit=str_to_int(optarg);
 				break;
 			case 'l':
-				lport=str_to_int(0, optarg);
+				lport=str_to_int(optarg);
 				break;
 			case 'L':
 				fix_crlf=0;
 				break;
 			case 'm':
-				maxforw=str_to_int(0, optarg);
+				maxforw=str_to_int(optarg);
 				break;
 			case 'M':
 				message=1;
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
 					sleep_ms = -2;
 				}
 				else {
-					sleep_ms = str_to_int(0, optarg);
+					sleep_ms = str_to_int(optarg);
 				}
 				break;
 			case 'O':
@@ -634,7 +634,7 @@ int main(int argc, char *argv[])
 #endif
 				break;
 			case 'P':
-				processes=str_to_int(0, optarg);
+				processes=str_to_int(optarg);
 				break;
 			case 'q':
 				if (re) {
@@ -655,7 +655,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'r':
 				port = 0;
-				port=str_to_int(0, optarg);
+				port=str_to_int(optarg);
 				if (rport) {
 					fprintf(stderr, "warning: you are overwritting the destination port with the r argument\n");
 				}
@@ -707,7 +707,7 @@ int main(int argc, char *argv[])
 				symmetric=1;
 				break;
 			case 't':
-				trashchar=str_to_int(0, optarg);
+				trashchar=str_to_int(optarg);
 				break;
 			case 'T':
 				trace=1;
@@ -778,23 +778,23 @@ int main(int argc, char *argv[])
 				warning_ext=1;
 				break;
 			case 'W':
-				nagios_warn = str_to_int(0, optarg);
+				nagios_warn = str_to_int(optarg);
 				break;
 			case 'x':
-				expires_t=str_to_int(0, optarg);
+				expires_t=str_to_int(optarg);
 				break;
 			case 'X':
 				srcaddr=optarg;
 				break;
 			case 'z':
-				rand_rem=str_to_int(0, optarg);
+				rand_rem=str_to_int(optarg);
 				if (rand_rem < 0 || rand_rem > 100) {
 					fprintf(stderr, "error: z option must between 0 and 100\n");
 					exit_code(2, __PRETTY_FUNCTION__, "value for option z out of range");
 				}
 				break;
 			case 'Z':
-				timer_t1 = str_to_int(0, optarg);
+				timer_t1 = str_to_int(optarg);
 				if (timer_t1 <= 0) {
 					fprintf(stderr, "error: Z option must be above 0\n");
 					exit_code(2, __PRETTY_FUNCTION__, "value for option Z must be above 0");

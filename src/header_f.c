@@ -197,7 +197,7 @@ void set_maxforw(char *mes, int value){
 		strncpy(backup, crlfi, strlen(crlfi));
 		crlfi=max + MAX_FRW_STR_LEN;
 		if (value == -1) {
-			maxforward = str_to_int(1, crlfi);
+			maxforward = str_to_int(crlfi);
 			maxforward++;
 		}
 		else {
@@ -285,7 +285,7 @@ int get_cl(char* mes) {
 	else {
 		cl+=15;
 	}
-	return str_to_int(1, cl);
+	return str_to_int(cl);
 }
 
 /* returns 1 if the rr_line contains the lr parameter
@@ -416,7 +416,7 @@ int cseq(char *message)
 	cseq=STRCASESTR(message, CSEQ_STR);
 	if (cseq) {
 		cseq+=6;
-		num=str_to_int(1, cseq);
+		num=str_to_int(cseq);
 		if (num < 1) {
 			if (verbose > 2)
 				printf("CSeq found but not convertable\n");

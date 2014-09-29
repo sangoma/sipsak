@@ -732,79 +732,37 @@ int is_number(char *number) {
 
 /* tries to convert the given string into an integer. it strips
  * white-spaces and exits if an error happens */
-int str_to_int(int mode, char *num) {
-	int ret, len;
-	char *end, *start;
-	char *backup = NULL;
+int str_to_int(const char *num) {
+	char *end;
 
-	len = strlen(num);
-	if (len == 0) {
-		fprintf(stderr, "error: string has zero length: '%s'\n", num);
-		ret = 2;
-		goto error;
-	}
-	/* we need to make a backup to insert the zero char */
-	backup = malloc(len + 1);
-	if (!backup) {
-		fprintf(stderr, "error: failed to allocate memory\n");
-		ret = 2;
-		goto error;
-	}
-	memcpy(backup, num, len + 1);
-
-	start = backup;
-	end = backup + len;
-	while (isspace(*start) && (start < end)) {
+	const char *start = num;
+	while (*start && isspace(*start))
 		start++;
+
+	errno = 0;
+
+	const long sl = strtol(start, &end, 10);
+
+	if (errno) {
+		fprintf(stderr, "error: %s: %s\n", strerror(errno), start);
+	} else if (end == start) {
+		errno = EINVAL;
+		fprintf(stderr, "error: not a decimal number: %s\n", start);
+	} else if (*end != '\0' && *end != ' ') {
+		errno = EINVAL;
+		fprintf(stderr, "error: extra characters at end of input: %s\n", start);
+	} else if (sl > INT_MAX || sl < INT_MIN) {
+		errno = ERANGE;
+		fprintf(stderr, "error: value out of range of integer: %s\n", start);
+	} else {
+		return (int)sl;
 	}
-	if (start == end) {
-		fprintf(stderr, "error: string is too short: '%s'\n", num);
-		ret = 2;
-		goto error;
-	}
-	if (mode == 0) {
-		end--;
-		while (isspace(*end) && (end > start)) {
-			end--;
-		}
-		if (end != (backup + len - 1)) {
-			end++;
-			*end = '\0';
-		}
-	}
-	else {
-		end = start;
-		end++;
-		while ((end < backup + len) && *end != '\0' && !isspace(*end)) {
-			end++;
-		}
-		*end = '\0';
-	}
-	if (!is_number(start)) {
-		fprintf(stderr, "error: string is not a number: '%s'\n", start);
-		ret = 2;
-		goto error;
-	}
-	ret = atoi(start);
-	if (ret >= 0) {
-		free(backup);
-		return ret;
-	}
-	else {
-		fprintf(stderr, "error: failed to convert string to integer: '%s'\n", num);
-		ret = 2;
-	}
-error:
-	if (backup) {
-		free(backup);
-	}
-	if (mode == 0) {
-		/* libcheck expects a return value not an exit code */
+
 #ifndef RUNNING_CHECK
-		exit_code(ret, __PRETTY_FUNCTION__, NULL);
+	/* libcheck expects a return value not an exit code */
+	exit_code(2, __PRETTY_FUNCTION__, NULL);
 #endif
-	}
-	return (ret * - 1);
+	return 0;
 }
 
 /* reads into the given buffer from standard input until the EOF

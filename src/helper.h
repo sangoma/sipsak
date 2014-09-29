@@ -84,7 +84,7 @@ double deltaT(struct timeval *t1p, struct timeval *t2p);
 
 int is_number(char *number);
 
-int str_to_int(int mode, char *num);
+int str_to_int(const char *num);
 
 int read_stdin(char *buf, int size, int ret);
 
