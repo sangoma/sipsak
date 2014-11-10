@@ -629,9 +629,6 @@ int main(int argc, char *argv[])
 				}
 				proxyname = host;
 				outbound_proxy=1;
-#ifdef DEBUG
-				printf("address: %lu, rport: %i\n", address, rport);
-#endif
 				break;
 			case 'P':
 				processes=str_to_int(optarg);
@@ -692,15 +689,7 @@ int main(int argc, char *argv[])
 					rport = port;
 				}
 
-				if (port != 0) {
-					backup = str_alloc(strlen(domainname)+1+6);
-					snprintf(backup, strlen(domainname)+6, "%s:%i", domainname, port);
-					domainname = backup;
-				}
 				uri_b=1;
-#ifdef DEBUG
-				printf("address: %lu, rport: %i, username: '%s', domain: '%s'\n", address, rport, username, domainname);
-#endif
 				break;
 			case 'S':
 				fprintf(stderr, "warning: symmetric does not work with a-symmetric servers\n");
@@ -814,6 +803,16 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "error: invalid remote port: %i\n", rport);
 		exit_code(2, __PRETTY_FUNCTION__, "remote port out of range");
 	}
+	if (rport != 0) {
+		backup = str_alloc(strlen(domainname)+1+6);
+		snprintf(backup, strlen(domainname)+6, "%s:%i", domainname, rport);
+		domainname = backup;
+	}
+
+#ifdef DEBUG
+	printf("address: %lu, rport: %i, username: '%s', domain: '%s'\n", address, rport, username, domainname);
+#endif
+
 	if (transport == 0) {
 		transport = SIP_UDP_TRANSPORT;
 	}
